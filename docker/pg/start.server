@@ -1,1 +1,1 @@
-docker run --rm -P --name pg_test postgresql
+docker run --rm -d -P --name pg-my postgresql

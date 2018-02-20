@@ -1,1 +1,1 @@
-docker stop postgresql
+docker stop pg-my
