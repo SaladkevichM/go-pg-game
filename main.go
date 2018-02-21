@@ -34,6 +34,9 @@ func main() {
 	//san, los := cities[0], cities[1]
 	//fmt.Println(san, los)
 
+	// http://jmoiron.github.io/sqlx/#altScanning
+	// SliceScan or MapScan
+
 	rows, err := db.Queryx("SELECT * FROM cities LIMIT 100")
 	var list []map[string]interface{}
 
@@ -45,6 +48,9 @@ func main() {
 		}
 		list = append(list, row)
 	}
+
+	rows.Close()
+	db.Close()
 
 	fmt.Println(list[0]["id"], list[0]["name"], list[0]["lat"])
 	fmt.Println(list[1]["id"], list[1]["name"], list[1]["lat"])
