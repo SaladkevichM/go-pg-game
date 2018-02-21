@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -17,10 +16,37 @@ INSERT INTO cities(name, lat, number) VALUES ('Los Angeles', '220.4', '0');
 INSERT INTO cities(name, lat, number) VALUES ('Paris', '80.4', '0');`
 
 type City struct {
-	Id     uint32
+	Id     int64
 	Name   string
-	Lat    float32
-	Number uint64
+	Lat    float64
+	Number int64
+}
+
+type Mapper func(map[string]interface{}) interface{}
+
+func CityMapper(row map[string]interface{}) interface{} {
+	return &City{Id: row["id"].(int64), Name: row["name"].(string), Lat: row["lat"].(float64), Number: row["number"].(int64)}
+}
+
+func GetDbSlice(db *sqlx.DB, fn Mapper, query string, args ...interface{}) []interface{} {
+
+	var result []interface{}
+	rows, err := db.Queryx(query, args...)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for rows.Next() {
+		row := make(map[string]interface{})
+		err = rows.MapScan(row)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		result = append(result, fn(row))
+	}
+	rows.Close()
+
+	return result
 }
 
 func main() {
@@ -31,37 +57,24 @@ func main() {
 	}
 	db.MustExec(schema)
 
+	list := GetDbSlice(db, CityMapper, "SELECT * FROM cities WHERE id=$1", 1)
+
+	fmt.Println(list[0])
+
 	/*
-		cities := []City{}
-		db.Select(&cities, "SELECT * FROM cities LIMIT 100")
-		san, los := cities[0], cities[1]
-		fmt.Println(san, los)
-	*/
+		rows, err := db.Queryx("SELECT * FROM cities LIMIT 100")
+		var list []map[string]interface{}
 
-	// http://jmoiron.github.io/sqlx/#altScanning
-
-	r, err := db.Exec("INSERT INTO cities (name, lat, number) VALUES ($1, $2, $3)", "Dublin", 332.5, math.MaxInt64)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	r.LastInsertId()
-
-	rows, err := db.Queryx("SELECT * FROM cities LIMIT 100")
-	var list []map[string]interface{}
-
-	for rows.Next() {
-		row := make(map[string]interface{})
-		err = rows.MapScan(row)
-		if err != nil {
-			log.Fatalln(err)
+		for rows.Next() {
+			row := make(map[string]interface{})
+			err = rows.MapScan(row)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			list = append(list, row)
 		}
-		list = append(list, row)
-	}
 
-	rows.Close()
-
-	fmt.Println(list[0]["id"], list[0]["name"], list[0]["lat"])
-	fmt.Println(list[1]["id"], list[1]["name"], list[1]["lat"])
-	fmt.Println(list[2]["id"], list[2]["name"], list[2]["lat"])
+		rows.Close()
+	*/
 
 }
