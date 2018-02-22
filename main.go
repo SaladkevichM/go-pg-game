@@ -10,15 +10,15 @@ import (
 
 const schema = `
 DROP TABLE IF EXISTS cities;
-CREATE TABLE cities (id SERIAL PRIMARY KEY NOT NULL, name varchar(80), lat real);
-INSERT INTO cities(name, lat) VALUES ('San Francisco', '194.4');
-INSERT INTO cities(name, lat) VALUES ('Los Angeles', '220.4');
-INSERT INTO cities(name, lat) VALUES ('Paris', '80.4');`
+CREATE TABLE cities (id SERIAL PRIMARY KEY NOT NULL, name varchar(80), lat integer);
+INSERT INTO cities(name, lat) VALUES ('San Francisco', '194');
+INSERT INTO cities(name, lat) VALUES ('Los Angeles', '220');
+INSERT INTO cities(name, lat) VALUES ('Paris', '80');`
 
 type City struct {
 	Id   int64
 	Name string
-	Lat  float64
+	Lat  int64
 }
 
 type Mapper func(map[string]interface{}) interface{}
@@ -27,17 +27,19 @@ func CityRowMapper(row map[string]interface{}) interface{} {
 	return &City{
 		Id:   row["id"].(int64),
 		Name: row["name"].(string),
-		Lat:  row["lat"].(float64),
+		Lat:  row["lat"].(int64),
 	}
 }
 
-func GetDbSlice(db *sqlx.DB, fn Mapper, query string, args ...interface{}) []interface{} {
+func Query(db *sqlx.DB, fn Mapper, query string, args ...interface{}) []interface{} {
 
 	var result []interface{}
 	rows, err := db.Queryx(query, args...)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		row := make(map[string]interface{})
@@ -47,7 +49,6 @@ func GetDbSlice(db *sqlx.DB, fn Mapper, query string, args ...interface{}) []int
 		}
 		result = append(result, fn(row))
 	}
-	rows.Close()
 
 	return result
 }
@@ -58,12 +59,13 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer db.Close()
 	db.MustExec(schema)
 
-	list := GetDbSlice(db, CityRowMapper, "SELECT * FROM cities WHERE id=$1", 1)
+	list := Query(db, CityRowMapper, "SELECT * FROM cities WHERE id=$1", 1)
 	fmt.Println(list[0])
 
-	list = GetDbSlice(db, CityRowMapper, "SELECT * FROM cities LIMIT 100")
+	list = Query(db, CityRowMapper, "SELECT * FROM cities LIMIT 100")
 	fmt.Println(list[0], list[1], list[2])
 
 }
