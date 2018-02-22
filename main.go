@@ -9,23 +9,26 @@ import (
 )
 
 const schema = `
-DROP TABLE cities;
-CREATE TABLE cities (id SERIAL PRIMARY KEY NOT NULL, name varchar(80), lat real, number bigint);
-INSERT INTO cities(name, lat, number) VALUES ('San Francisco', '194.4', '0');
-INSERT INTO cities(name, lat, number) VALUES ('Los Angeles', '220.4', '0');
-INSERT INTO cities(name, lat, number) VALUES ('Paris', '80.4', '0');`
+DROP TABLE IF EXISTS cities;
+CREATE TABLE cities (id SERIAL PRIMARY KEY NOT NULL, name varchar(80), lat real);
+INSERT INTO cities(name, lat) VALUES ('San Francisco', '194.4');
+INSERT INTO cities(name, lat) VALUES ('Los Angeles', '220.4');
+INSERT INTO cities(name, lat) VALUES ('Paris', '80.4');`
 
 type City struct {
-	Id     int64
-	Name   string
-	Lat    float64
-	Number int64
+	Id   int64
+	Name string
+	Lat  float64
 }
 
 type Mapper func(map[string]interface{}) interface{}
 
-func CityMapper(row map[string]interface{}) interface{} {
-	return &City{Id: row["id"].(int64), Name: row["name"].(string), Lat: row["lat"].(float64), Number: row["number"].(int64)}
+func CityRowMapper(row map[string]interface{}) interface{} {
+	return &City{
+		Id:   row["id"].(int64),
+		Name: row["name"].(string),
+		Lat:  row["lat"].(float64),
+	}
 }
 
 func GetDbSlice(db *sqlx.DB, fn Mapper, query string, args ...interface{}) []interface{} {
@@ -57,24 +60,10 @@ func main() {
 	}
 	db.MustExec(schema)
 
-	list := GetDbSlice(db, CityMapper, "SELECT * FROM cities WHERE id=$1", 1)
-
+	list := GetDbSlice(db, CityRowMapper, "SELECT * FROM cities WHERE id=$1", 1)
 	fmt.Println(list[0])
 
-	/*
-		rows, err := db.Queryx("SELECT * FROM cities LIMIT 100")
-		var list []map[string]interface{}
-
-		for rows.Next() {
-			row := make(map[string]interface{})
-			err = rows.MapScan(row)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			list = append(list, row)
-		}
-
-		rows.Close()
-	*/
+	list = GetDbSlice(db, CityRowMapper, "SELECT * FROM cities LIMIT 100")
+	fmt.Println(list[0], list[1], list[2])
 
 }
